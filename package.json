@@ -1,0 +1,25 @@
+{
+  "name": "alotofdotcoms.com",
+  "version": "1.0.0",
+  "description": "Experiment on zonefiles data from VeriSign",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@bitbucket.org/ponelat/zonefiles.git"
+  },
+  "keywords": [
+    "website",
+    "ponelat"
+  ],
+  "author": "Josh Ponelat",
+  "license": "UNLICENSED",
+  "homepage": "https://bitbucket.org/ponelat/zonefiles#readme",
+  "dependencies": {
+    "dns-zonefile": "^0.1.10",
+    "event-stream": "^3.3.2",
+    "mongodb": "^2.0.46"
+  }
+}
