@@ -8,11 +8,25 @@ var rejectedLines = 0
 var acceptedLines = 0
 var totalLines = 0
 
+var zoneFile = process.env.ZONEFILE || 'com.zone'
+
 var zones = {}
+
+var loggerCount = 0
+var logOnlyOn = process.env.LOGEVERYXLINES || 1000 // log every 100th time, for performance
+
+function logLine(str) {
+  if(loggerCount++ % logOnlyOn === 0) {
+    loggerCount = 1
+    process.stdout.write(str)
+  }
+}
+
+console.log('Logging every ' + logOnlyOn + ' lines')
 
 DB.connect(function() {
 
-  fs.createReadStream('com.zone', {flags: 'r'})
+  fs.createReadStream(zoneFile, {flags: 'r'})
   .pipe(es.split())
   .pipe(es.map(function(line, done){
 
@@ -22,8 +36,7 @@ DB.connect(function() {
 
     if(!matches) {
       rejectedLines++
-      // console.log('line "' + line + '"');
-      process.stdout.write('x')
+      logLine('x')
       return done(null, line)
     }
 
@@ -33,15 +46,15 @@ DB.connect(function() {
       domain: matches[1]
     }
 
-    DB.insert('com', record, function(err, res) {
-      process.stdout.write('.')
+    DB.insert(record, function(err, res) {
+      logLine('.')
       done(null, line)
     })
 
   }))
   .on('end', function() {
     DB.close()
-    console.log('Done');
+    console.log('\nDone');
     console.log('rejectedLines', rejectedLines);
     console.log('acceptedLines', acceptedLines);
     console.log('totalLines', totalLines);

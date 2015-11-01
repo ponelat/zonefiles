@@ -1,9 +1,16 @@
 var es = require('event-stream');
 var MongoClient = require('mongodb').MongoClient
-  , assert = require('assert');
+  , assert = require('assert')
+  , urlParser = require('url');
 
 // Connection URL
-var url = 'mongodb://localhost:27017/test';
+var opts = {
+  url: process.env.MONGO_PORT || 'mongodb://localhost:27017',
+  db: process.env.DB || 'test',
+  collection: process.env.COLLECTION || 'com'
+}
+var parts = urlParser.parse(opts.url)
+var url = 'mongodb://' + parts.host + '/' + opts.db
 var db
 
 function connect(done) {
@@ -13,6 +20,8 @@ function connect(done) {
     db = _db
     assert.equal(null, err);
     console.log("Connected correctly to server");
+    console.log('Mongo URL: ' + url)
+    console.log('Inserting into: ' + opts.collection)
 
     if(done){ 
       done()
@@ -20,8 +29,8 @@ function connect(done) {
   });
 }
 
-function insert(coll, doc,done) {
-  db.collection(coll).insertOne(doc, done)
+function insert(doc,done) {
+  db.collection(opts.collection).insertOne(doc, done)
 }
 
 function close() {
