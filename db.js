@@ -3,25 +3,45 @@ var MongoClient = require('mongodb').MongoClient
   , assert = require('assert')
   , urlParser = require('url');
 
-// Connection URL
-var opts = {
-  url: process.env.MONGO_PORT || 'mongodb://localhost:27017',
-  db: process.env.DB || 'test',
-  collection: process.env.COLLECTION || 'com'
-}
-var parts = urlParser.parse(opts.url)
-var url = 'mongodb://' + parts.host + '/' + opts.db
-var db
+var bulkMongo = require('bulk-mongo')
+var Logger = require('./logger')
 
-function connect(done) {
+// Stream 
+var es = require('event-stream')
+
+// Connection URL
+var config = require('./config')
+
+module.exports = DB
+
+function DB() {
+  if(!(this instanceof DB)) {
+    return new DB()
+  }
+
+  var parts = urlParser.parse(config.MONGO_PORT)
+  this.url = 'mongodb://' + parts.host + '/' + config.DB
+
+  this.log = Logger('DB')
+  this.db
+}
+
+DB.prototype.connect = function(done) {
+  var that = this
 
   // Use connect method to connect to the Server
-  MongoClient.connect(url, function(err, _db) {
-    db = _db
+  MongoClient.connect(this.url, function(err, _db) {
     assert.equal(null, err);
-    console.log("Connected correctly to server");
-    console.log('Mongo URL: ' + url)
-    console.log('Inserting into: ' + opts.collection)
+
+    that.db = _db
+
+    // factory_function = bulkMongo(db);
+
+    that.coll = that.db.collection(config.COLLECTION)
+
+    that.log.log("Connected correctly to server");
+    that.log.data('Mongo URL', that.url)
+    that.log.data('Inserting into',config.COLLECTION)
 
     if(done){ 
       done()
@@ -29,14 +49,25 @@ function connect(done) {
   });
 }
 
-function insert(doc,done) {
-  db.collection(opts.collection).insertOne(doc, done)
+DB.prototype.insert = function (doc,done) {
+  return this.coll.insertOne(doc, done)
 }
 
-function close() {
-  db.close()
+DB.prototype.insertMany = function (docs,done) {
+  return this.coll.insertMany(docs, {w:0}, done)
 }
 
-module.exports.insert = insert
-module.exports.close = close
-module.exports.connect = connect
+DB.prototype.bulkWriter = function () {
+  var that = this
+
+  return es.map(function (domains, done) {
+    that.insertMany(domains)
+    .then(function (res) {
+      done(null, res)
+    })
+    .catch(function (err) {
+      done(err)
+    })
+  })
+
+}
