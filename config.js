@@ -11,6 +11,7 @@ function reset(override){
     ZONEFILE: 'com.zone',
     BULK_COUNT: 100,
     LOGEVERYXLINES: '1000',
+    WRITECONCERN: '0',
     MONGO_PORT: 'mongodb://localhost:27017',
     _DBPATH: path.join(__dirname, '_db/'),
     reset: reset

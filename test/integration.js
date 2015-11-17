@@ -9,17 +9,18 @@ var ZoneImporter = require('../zone-importer')
 var logger = require('../logger')('TEST')
 
 var mongo
+var db
 
-var db = DB()
 
 function dbClean(done) {
-  db.connect(function () {
+  db.db.open(function () {
     db.db.dropCollection('com', function (err) {
       if(err && (err.message).match(/ns not found/)) {
         return done(); // Ignore 'ns not found' error if collection did not exist
       }
       done(err)
-    });
+    })
+
   })
 }
 
@@ -45,59 +46,88 @@ function dbSetup(done) {
 }
 
 function dbKill(done) {
-  db.db.close(function () {
-    mongo.kill()
-    mongo.once('exit', function () {
-      logger.log('Mongo killed --------------')
-      done()
-    })
-  })
+  logger.log('Killing server ---------------')
+  mongo.once('close', end)
+  mongo.kill()
+  function end() {
+    logger.log('Mongo killed --------------')
+    done()
+  }
 }
 
 describe('Zonefile importer', function(){
 
   before(function(done){
-    logger.log('Opening DB -------------')
-    logger.log('..on: ', config._DBPATH)
-    logger.log('..collection: ', config.COLLECTION)
-    dbSetup(done)
-  })
-
-  after(function(done){
-    this.timeout(5 * 1000)
-    logger.log('Killing server ---------------')
-    dbKill(done)
-  })
-
-  beforeEach(function(done){
     config.reset({
       LOGEVERYXLINES: 1,
       ZONEFILE: path.resolve(__dirname, '../test-zones/com.zone'),
-      DB: 'test'
+      DB: 'test',
+      WRITECONCERN: 1
     })
-    dbClean(done)
+    logger.log('Opening DB -------------')
+    logger.log('..on: ', config._DBPATH)
+    logger.log('..collection: ', config.COLLECTION)
+    dbSetup(function () {
+      db = DB()
+      db.connect(done)
+    })
+  })
+
+  after(function(done){
+    this.timeout(10 * 1000)
+    logger.log('Closing connection...')
+    db.close(function () {
+      logger.log('Closed connection')
+      dbKill(done)
+    })
+  })
+
+  beforeEach(function(done){
+    db.db.open(function () {
+      dbClean(done)
+    })
   })
 
   it('there should not be any records', function(done){
+    this.timeout(5 * 1000)
 
     var res = db.db.collection(config.COLLECTION).find({}).count()
-    // require('../app.js')
     res.then(function (count) {
       expect(count).to.equal(0)
       done()
-    })
+    }).catch(done)
     
   })
 
-  it('should insert NS records', function(done){
-
+  it('should not accept duplicate record', function(done){
     this.timeout(5 * 1000)
     var zi = ZoneImporter({verbose: true})
-    zi.run(function (count) {
-      expect(count.insertedCount).to.equal(824)
-      done()
+    zi.setupDB(function () {
+      zi.db.insert({domain: 'josh'}, function (err) {
+        expect(err).to.equal(null)
+        zi.db.insert({domain: 'josh'}, function (err) {
+          expect(err.message).to.match(/duplicate/)
+          done()
+        })
+      })
     })
 
   })
+
+  it('should insert NS records and record stats', function(done){
+
+    this.timeout(5 * 1000)
+    var zi = ZoneImporter({verbose: true})
+    zi.setupDB(function () {
+      zi.run(function (stats) {
+        expect(stats.NSDocs).to.equal(824)
+        expect(stats.BulkChunks).to.equal(9)
+        expect(stats.insertedCount).to.equal(824)
+        done()
+      })
+    })
+
+  })
+
   
 })

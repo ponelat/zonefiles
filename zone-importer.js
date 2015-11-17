@@ -15,8 +15,8 @@ function ZoneImporter(opts) {
     return new ZoneImporter()
   }
 
-  opts = deepExtend({
-    verbose: false
+  this.opts = deepExtend({
+    verbose: false,
   },opts)
 
   this.log = Logger({
@@ -26,12 +26,18 @@ function ZoneImporter(opts) {
 
   this._stats = {}
 
+  this.stats('writeConcern', +config.WRITECONCERN, true)
+
   this.config = require('./config')
   this.zoneFile = config.ZONEFILE
 
   this.db = DB()
-  this.log.data('Zone file', this.zoneFile)
+  this.log.debug(this.zoneFile, 'Zone file')
 
+}
+
+ZoneImporter.prototype.setupDB = function(done) {
+  this.db.runSchema(done)
 }
 
 ZoneImporter.prototype.stats = function(record, inc, noStream) {
@@ -108,7 +114,6 @@ function waitFor(num, that) {
 
 ZoneImporter.prototype.run = function(cb) {
   var that = this
-  that.log.h1('Callback')
   this.log.debug(cb)
 
   this.db.connect(function() {
@@ -132,13 +137,13 @@ ZoneImporter.prototype.run = function(cb) {
       done(null, count)
     }))
     .on('end', function() {
-      that.db.db.close(function () {
+      that.db.close(function () {
 
         that.log.debug(that.stats(), 'Stats')
         that.log.h1('Done')
         that.log.debug(cb, 'Callback')
         cb(that.stats())
-        
+
       })
     })
   })
