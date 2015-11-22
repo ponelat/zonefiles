@@ -42,6 +42,10 @@ ZoneImporter.prototype.setupDB = function(done) {
   this.db.runSchema(done)
 }
 
+ZoneImporter.prototype.getStat = function(record) {
+  return this._stats[record]
+}
+
 ZoneImporter.prototype.stats = function(record, inc, noStream) {
 
   if(typeof record !== 'string')
@@ -135,6 +139,13 @@ ZoneImporter.prototype.run = function(cb) {
     .pipe(es.map(function (bulkRes, done) {
       var count = bulkRes.nInserted + bulkRes.nUpserted
       that.stats('insertedCount', count || 0, true)
+
+      if(config.WRITECONCERN == 0) {
+        that.log.data('bulk upsert...', that.getStat('BulkChunks'))
+      } else {
+        that.log.data('Inserted', count)
+      }
+
       done(null, count)
     }))
     .on('end', function() {

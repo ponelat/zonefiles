@@ -1,6 +1,5 @@
 var expect = require('chai').expect
 var DB = require('../db')
-// var zonefile = require('../test-zones/com.zone')
 var spawn = require('child_process').spawn
 var path = require('path')
 var es = require('event-stream')
@@ -60,7 +59,7 @@ describe('Zonefile importer', function(){
   before(function(done){
     config.reset({
       LOGEVERYXLINES: 1,
-      ZONEFILE: path.resolve(__dirname, '../test-zones/com.zone'),
+      ZONEFILE: path.resolve(__dirname, '../com.zone'),
       DB: 'test',
       WRITECONCERN: 1
     })

@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node app.js",
     "test": "mocha -c -R spec -b test/**/*.js",
-    "west": "mocha -w -c -R spec -b test/**/*.js"
+    "west": "mocha -w -c -R spec -b test/**/*.js",
+    "mongod": "mongod --dbpath=_db"
   },
   "repository": {
     "type": "git",
