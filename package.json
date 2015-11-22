@@ -20,10 +20,8 @@
   "license": "UNLICENSED",
   "homepage": "https://bitbucket.org/ponelat/zonefiles#readme",
   "dependencies": {
-    "bulk-mongo": "^0.1.0",
     "chalk": "^1.1.1",
     "deep-extend": "^0.4.0",
-    "dns-zonefile": "^0.1.10",
     "event-stream": "^3.3.2",
     "mongodb": "^2.0.46"
   },
