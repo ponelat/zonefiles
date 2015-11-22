@@ -3,7 +3,6 @@ var MongoClient = require('mongodb').MongoClient
   , assert = require('assert')
   , urlParser = require('url');
 
-var bulkMongo = require('bulk-mongo')
 var Logger = require('./logger')
 
 // Stream 
@@ -46,7 +45,6 @@ DB.prototype.connect = function(done) {
 
     that.db = _db
 
-    // factory_function = bulkMongo(db);
 
     that.log.log("Connected correctly to server");
     that.log.data('Mongo URL', that.url)

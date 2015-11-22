@@ -4,6 +4,7 @@ var DB = require('./db')
 var config = require('./config')
 var Logger = require('./logger.js')
 var deepExtend = require('deep-extend')
+var pkg = require('./package.json')
 
 // Domain name, with NS record
 var NS_REGXEP = /^([\w-]+)\s+(NS|ns)\s+/
@@ -32,8 +33,9 @@ function ZoneImporter(opts) {
   this.zoneFile = config.ZONEFILE
 
   this.db = DB()
-  this.log.debug(this.zoneFile, 'Zone file')
 
+  this.log.h1('Zone-Importer v' + pkg.version)
+  this.log.debug(this.zoneFile, 'Zone file')
 }
 
 ZoneImporter.prototype.setupDB = function(done) {
