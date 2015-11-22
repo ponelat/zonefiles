@@ -128,6 +128,24 @@ describe('Zonefile importer', function(){
     })
 
   })
+ 
+  it('should not die, if duplicates exist', function(done){
 
+    this.timeout(5 * 1000)
+    var zi = ZoneImporter()
+    zi.setupDB(function () {
+      zi.db.insert({domain: 'LADIESFORMALWEAR'}, function () {
+
+        zi.run(function (stats) {
+          expect(stats.NSDocs).to.equal(824)
+          expect(stats.BulkChunks).to.equal(9)
+          expect(stats.insertedCount).to.equal(823)
+          done()
+        })
+
+      })
+    })
+
+  })
   
 })

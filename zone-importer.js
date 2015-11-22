@@ -114,8 +114,6 @@ function waitFor(num, that) {
 
 ZoneImporter.prototype.run = function(cb) {
   var that = this
-  this.log.debug(cb)
-
   this.db.connect(function() {
     that.log.h1('Begin importing')
 
@@ -132,8 +130,9 @@ ZoneImporter.prototype.run = function(cb) {
     .pipe(waitFor(config.BULK_COUNT, that))
     .pipe(that.stats('BulkChunks'))
     .pipe(that.db.bulkWriter())
-    .pipe(es.map(function (count, done) {
-      that.stats('insertedCount', count.insertedCount || 0, true)
+    .pipe(es.map(function (bulkRes, done) {
+      var count = bulkRes.nInserted + bulkRes.nUpserted
+      that.stats('insertedCount', count || 0, true)
       done(null, count)
     }))
     .on('end', function() {
@@ -141,8 +140,8 @@ ZoneImporter.prototype.run = function(cb) {
 
         that.log.debug(that.stats(), 'Stats')
         that.log.h1('Done')
-        that.log.debug(cb, 'Callback')
-        cb(that.stats())
+        if(cb) 
+          cb(that.stats())
 
       })
     })

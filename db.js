@@ -76,16 +76,24 @@ DB.prototype.insert = function (doc,done) {
 }
 
 DB.prototype.insertMany = function (docs,done) {
-  return this.coll().insertMany(docs, {w: +config.WRITECONCERN}, done)
+  return this.coll().insertMany(docs, this.writeConcern(), done)
+}
+
+
+DB.prototype.writeConcern = function () {
+  return {w: +config.WRITECONCERN}
 }
 
 DB.prototype.bulkWriter = function () {
   var that = this
 
   return es.map(function (domains, done) {
-    that.insertMany(domains, function (err, res) {
-      done(err, res)
+    // that.insertMany(domains, done)
+    var batch = that.coll().initializeUnorderedBulkOp(that.writeConcern())
+    domains.forEach(function (domain) {
+      batch.find(domain).upsert().updateOne(domain)
     })
+    batch.execute(done)
   })
 
 }

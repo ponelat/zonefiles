@@ -1,2 +1,4 @@
-var run = require('./zone-importer').run
-run()
+var zi = require('./zone-importer')()
+zi.setupDB(function() {
+  zi.run()
+})
