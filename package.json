@@ -1,6 +1,6 @@
 {
   "name": "alotofdotcoms.com",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Experiment on zonefiles data from VeriSign",
   "main": "index.js",
   "scripts": {
