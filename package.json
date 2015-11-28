@@ -24,6 +24,7 @@
     "chalk": "^1.1.1",
     "deep-extend": "^0.4.0",
     "event-stream": "^3.3.2",
+    "glob": "^6.0.1",
     "mongodb": "^2.0.46",
     "prettyjson": "^1.1.3"
   },

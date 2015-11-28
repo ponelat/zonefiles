@@ -1,7 +1,9 @@
 var expect = require('chai').expect
 var DB = require('../db')
 var spawn = require('child_process').spawn
+var Glob = require('glob')
 var path = require('path')
+var fs = require('fs')
 var es = require('event-stream')
 var config = require('../config')
 var ZoneImporter = require('../zone-importer')
@@ -87,64 +89,155 @@ describe('Zonefile importer', function(){
     })
   })
 
-  it('there should not be any records', function(done){
-    this.timeout(5 * 1000)
 
-    var res = db.db.collection(config.COLLECTION).find({}).count()
-    res.then(function (count) {
-      expect(count).to.equal(0)
-      done()
-    }).catch(done)
-    
-  })
+  describe('Single Run', function(){
 
-  it('should not accept duplicate record', function(done){
-    this.timeout(5 * 1000)
-    var zi = ZoneImporter({verbose: true})
-    zi.setupDB(function () {
-      zi.db.insert({domain: 'josh'}, function (err) {
-        expect(err).to.equal(null)
+    it('there should not be any records', function(done){
+      this.timeout(5 * 1000)
+
+      var res = db.db.collection(config.COLLECTION).find({}).count()
+      res.then(function (count) {
+        expect(count).to.equal(0)
+        done()
+      }).catch(done)
+
+    })
+
+    it('should not accept duplicate record', function(done){
+      this.timeout(5 * 1000)
+      var zi = ZoneImporter({verbose: true})
+      zi.setupDB(function () {
         zi.db.insert({domain: 'josh'}, function (err) {
-          expect(err.message).to.match(/duplicate/)
+          expect(err).to.equal(null)
+          zi.db.insert({domain: 'josh'}, function (err) {
+            expect(err.message).to.match(/duplicate/)
+            done()
+          })
+        })
+      })
+
+    })
+
+    it('should insert NS records and record stats', function(done){
+
+      this.timeout(5 * 1000)
+      var zi = ZoneImporter({verbose: true})
+      zi.setupDB(function () {
+        zi.run('com.zone', function (stats) {
+          expect(stats.NSDocs).to.equal(824)
+          expect(stats.BulkChunks).to.equal(9)
+          expect(stats.insertedCount).to.equal(824)
           done()
         })
       })
+
     })
+
+    it('should not die, if duplicates exist', function(done){
+
+      this.timeout(5 * 1000)
+      var zi = ZoneImporter()
+      zi.setupDB(function () {
+        zi.db.insert({domain: 'LADIESFORMALWEAR'}, function () {
+
+          zi.run('com.zone', function (stats) {
+            expect(stats.NSDocs).to.equal(824)
+            expect(stats.BulkChunks).to.equal(9)
+            expect(stats.insertedCount).to.equal(823)
+            done()
+          })
+
+        })
+      })
+
+    })
+
 
   })
 
-  it('should insert NS records and record stats', function(done){
+  describe('Multi Run', function(){
 
-    this.timeout(5 * 1000)
-    var zi = ZoneImporter({verbose: true})
-    zi.setupDB(function () {
-      zi.run(function (stats) {
-        expect(stats.NSDocs).to.equal(824)
-        expect(stats.BulkChunks).to.equal(9)
-        expect(stats.insertedCount).to.equal(824)
+    // beforeEach(function(done){
+    //   splitFileInto('com.zone', 10, done)
+    // })
+
+    // afterEach(function(done){
+    //   Glob('com.zone_*', function (err, files) {
+    //     var counter = 0
+    //     next()
+    //     function next() {
+    //       if(counter >= files.length)
+    //         return done()
+    //       var file = files[counter++]
+    //       console.log('file', file)
+    //       fs.unlink(file, next)
+    //     }
+    //   })
+    // })
+
+    it('should parse/upload each file', function(done){
+
+      this.timeout(5 * 1000)
+
+      var zi = ZoneImporter({verbose: true})
+      zi.runMulti('com.zone_*', function (stats) {
+        expect(Object.keys(stats)).to.have.length(10)
         done()
       })
     })
 
-  })
- 
-  it('should not die, if duplicates exist', function(done){
+    it('should parse/upload each file and del file afterwards', function(done){
 
-    this.timeout(5 * 1000)
-    var zi = ZoneImporter()
-    zi.setupDB(function () {
-      zi.db.insert({domain: 'LADIESFORMALWEAR'}, function () {
+      this.timeout(5 * 1000)
 
-        zi.run(function (stats) {
-          expect(stats.NSDocs).to.equal(824)
-          expect(stats.BulkChunks).to.equal(9)
-          expect(stats.insertedCount).to.equal(823)
+      var zi = ZoneImporter()
+      zi.runMulti('com.zone_*', function (stats) {
+        expect(Object.keys(stats)).to.have.length(10)
+        Glob('com.zone_*', function (err, files) {
+          console.log('files', files)
+          expect(files).to.have.length(0)
           done()
         })
-
       })
     })
-
   })
-  
+
 })
+
+function splitFileInto(file, parts, done) {
+  var totalLines = 0
+  var anotherTotalLines = 0
+
+  fs.readFileSync(file)
+    fs.createReadStream(file, {flags: 'r'})
+    .pipe(es.split())
+    .pipe(es.map(count))
+    .on('end', function () {
+      var linesPerPart = (totalLines-1) / parts
+
+      fs.createReadStream(file, {flags: 'r'})
+      .pipe(es.split())
+      .pipe(ZoneImporter.waitFor(linesPerPart))
+      .pipe(es.map(function (lines, next) {
+        anotherTotalLines += lines.length
+        var filename = file + '_' + numToAlpha(Math.floor(anotherTotalLines / linesPerPart) - 1 )
+        if(anotherTotalLines > totalLines) {
+          return done(null, lines)
+        }
+        fs.writeFile(filename, lines.join('\n'), function () {
+          next(null, lines)
+        })
+      }))
+      .on('end', done)
+    })
+
+  function count(line, next) {
+    totalLines++
+    next(null, line)
+  }
+}
+
+const ALPHA  = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z']
+function numToAlpha(num) {
+  return ALPHA[num]
+}

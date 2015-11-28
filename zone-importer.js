@@ -5,6 +5,7 @@ var config = require('./config')
 var Logger = require('./logger.js')
 var deepExtend = require('deep-extend')
 var pkg = require('./package.json')
+var Glob = require('glob')
 
 // Domain name, with NS record
 var NS_REGXEP = /^([\w-]+)\s+(NS|ns)\s+/
@@ -25,9 +26,7 @@ function ZoneImporter(opts) {
     prefix: 'Zone Importer'
   })
 
-  this._stats = {}
-
-  this.stats('writeConcern', +config.WRITECONCERN, true)
+  // stats('writeConcern', +config.WRITECONCERN, true)
 
   this.config = require('./config')
   this.zoneFile = config.ZONEFILE
@@ -42,33 +41,31 @@ ZoneImporter.prototype.setupDB = function(done) {
   this.db.runSchema(done)
 }
 
-ZoneImporter.prototype.getStat = function(record) {
-  return this._stats[record]
-}
+function Stats(title) {
+  var stats = {title: title}
+  return function(record, inc, noStream) {
 
-ZoneImporter.prototype.stats = function(record, inc, noStream) {
+    if(typeof record !== 'string')
+      return stats
 
-  if(typeof record !== 'string')
-    return this._stats
+    if(inc === true) {
+      noStream = true
+      inc = 1
+    } else if(typeof inc === 'undefined') {
+      inc = 1
+    } else if(typeof inc !== 'number') {
+      inc = 0
+    }
 
-  if(inc === true) {
-    noStream = true
-    inc = 1
-  } else if(typeof inc === 'undefined') {
-    inc = 1
-  } else if(typeof inc !== 'number') {
-    inc = 0
+    if(noStream) {
+      return stats[record] = (stats[record] || 0) + inc
+    }
+
+    return es.map(function (line, done) {
+      stats[record] = (stats[record] || 0) + inc
+      done(null, line)
+    })
   }
-
-  if(noStream) {
-    return this._stats[record] = (this._stats[record] || 0) + inc
-  }
-
-  var that = this
-  return es.map(function (line, done) {
-    that._stats[record] = (that._stats[record] || 0) + inc
-    done(null, line)
-  })
 }
 
 function unique() {
@@ -99,7 +96,7 @@ function createNSDocument() {
   })
 }
 
-function waitFor(num, that) {
+ZoneImporter.waitFor = function waitFor(num) {
   var arr = []
   return es.through(function write(chunk, eh) {
     arr.push(chunk)
@@ -118,30 +115,31 @@ function waitFor(num, that) {
   })
 }
 
-ZoneImporter.prototype.run = function(cb) {
+ZoneImporter.prototype.run = function(file, cb) {
   var that = this
+  var stats = Stats(file)
   this.db.connect(function() {
-    that.log.h1('Begin importing')
+    that.log.h1('Begin importing ' + file)
 
-    fs.createReadStream(that.zoneFile, {flags: 'r'})
+    fs.createReadStream(file, {flags: 'r'})
 
     .pipe(es.split())
-    .pipe(that.stats('Lines'))
+    .pipe(stats('Lines'))
     .pipe(onlyNSRecords())
-    .pipe(that.stats('Records'))
+    .pipe(stats('Records'))
     .pipe(unique())
-    .pipe(that.stats('UniqueRecords'))
+    .pipe(stats('UniqueRecords'))
     .pipe(createNSDocument())
-    .pipe(that.stats('NSDocs'))
-    .pipe(waitFor(config.BULK_COUNT, that))
-    .pipe(that.stats('BulkChunks'))
+    .pipe(stats('NSDocs'))
+    .pipe(ZoneImporter.waitFor(config.BULK_COUNT))
+    .pipe(stats('BulkChunks'))
     .pipe(that.db.bulkWriter())
     .pipe(es.map(function (bulkRes, done) {
       var count = bulkRes.nInserted + bulkRes.nUpserted
-      that.stats('insertedCount', count || 0, true)
+      stats('insertedCount', count || 0, true)
 
       if(config.WRITECONCERN == 0) {
-        that.log.data('bulk upsert...', that.getStat('BulkChunks'))
+        // that.log.data('bulk upsert...', stats('BulkChunks'))
       } else {
         that.log.data('Inserted', count)
       }
@@ -149,15 +147,43 @@ ZoneImporter.prototype.run = function(cb) {
       done(null, count)
     }))
     .on('end', function() {
-      that.db.close(function () {
-
-        that.log.debug(that.stats(), 'Stats')
-        that.log.h1('Done')
-        if(cb) 
-          cb(that.stats())
-
-      })
+      that.log.debug(stats(), 'Stats')
+      that.log.h1('Done')
+      if(cb) 
+        cb(stats())
     })
   })
+}
+
+ZoneImporter.prototype.runMulti = function(glob, opts, cb) {
+  if(typeof opts === 'function') {
+    cb = opts
+    opts = {}
+  }
+  opts = Object.assign({}, opts, {delAfter: false})
+  var that = this
+  var stats = {}
+  var counter = 0
+  Glob(glob, {}, function (err, files) {
+    that.log.h1('Begin importing ' + files.length + ' files')
+    if(files.length <= 0) {
+      throw new Error('No files!')
+    }
+    next()
+
+    function next(err) {
+      if(err) 
+        throw new Error(err)
+      if(counter >= files.length)
+        return cb(stats)
+      var file = files[counter++]
+      that.run(file, function (stat) {
+        stats[file] = stat
+        // if(opts.delAfter) 
+        //   return fs.unlink(file, next)
+        next()
+      })
+    }
+  }) 
 }
 

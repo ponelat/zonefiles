@@ -7,8 +7,9 @@ function reset(override){
   override = override || {}
   return deepExtend(config,{
     COLLECTION: 'com',
+    ZONEFILE: '',
+    ZONEFILES: 'x*',
     DB: 'zones',
-    ZONEFILE: 'com.zone',
     BULK_COUNT: 100,
     LOGEVERYXLINES: '1000',
     WRITECONCERN: '0',
