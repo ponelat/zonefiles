@@ -161,19 +161,19 @@ describe('Zonefile importer', function(){
       splitFileInto('com.zone', 10, done)
     })
 
-    // afterEach(function(done){
-    //   Glob('com.zone_*', function (err, files) {
-    //     var counter = 0
-    //     next()
-    //     function next() {
-    //       if(counter >= files.length)
-    //         return done()
-    //       var file = files[counter++]
-    //       console.log('file', file)
-    //       fs.unlink(file, next)
-    //     }
-    //   })
-    // })
+    afterEach(function(done){
+      Glob('com.zone_*', function (err, files) {
+        var counter = 0
+        next()
+        function next() {
+          if(counter >= files.length)
+            return done()
+          var file = files[counter++]
+          console.log('file', file)
+          fs.unlink(file, next)
+        }
+      })
+    })
 
     it('should parse/upload each file', function(done){
 
