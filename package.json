@@ -7,7 +7,8 @@
     "start": "node app.js",
     "test": "mocha -c -R spec -b test/**/*.js",
     "west": "mocha -w -c -R spec -b test/**/*.js",
-    "mongod": "mongod --dbpath=_db"
+    "mongod": "mongod --dbpath=_db",
+    "split": "split -C 10000 com.zone"
   },
   "repository": {
     "type": "git",

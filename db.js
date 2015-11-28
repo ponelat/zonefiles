@@ -27,7 +27,8 @@ function DB() {
 DB.prototype.close = function(done) {
   this.db.close(function () {
     this.db = void 0
-    done()
+    if(typeof done === 'function')
+      done()
   })
 }
 
