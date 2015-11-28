@@ -157,9 +157,9 @@ describe('Zonefile importer', function(){
 
   describe('Multi Run', function(){
 
-    // beforeEach(function(done){
-    //   splitFileInto('com.zone', 10, done)
-    // })
+    beforeEach(function(done){
+      splitFileInto('com.zone', 10, done)
+    })
 
     // afterEach(function(done){
     //   Glob('com.zone_*', function (err, files) {
@@ -191,10 +191,9 @@ describe('Zonefile importer', function(){
       this.timeout(5 * 1000)
 
       var zi = ZoneImporter()
-      zi.runMulti('com.zone_*', function (stats) {
+      zi.runMulti('com.zone_*', {delAfter: true}, function (stats) {
         expect(Object.keys(stats)).to.have.length(10)
-        Glob('com.zone_*', function (err, files) {
-          console.log('files', files)
+        Glob('com.zone_*',function (err, files) {
           expect(files).to.have.length(0)
           done()
         })
@@ -222,7 +221,7 @@ function splitFileInto(file, parts, done) {
         anotherTotalLines += lines.length
         var filename = file + '_' + numToAlpha(Math.floor(anotherTotalLines / linesPerPart) - 1 )
         if(anotherTotalLines > totalLines) {
-          return done(null, lines)
+          return next(null, lines)
         }
         fs.writeFile(filename, lines.join('\n'), function () {
           next(null, lines)

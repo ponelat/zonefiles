@@ -160,11 +160,12 @@ ZoneImporter.prototype.runMulti = function(glob, opts, cb) {
     cb = opts
     opts = {}
   }
-  opts = Object.assign({}, opts, {delAfter: false})
+  opts = Object.assign({delAfter: false}, opts)
   var that = this
   var stats = {}
   var counter = 0
-  Glob(glob, {}, function (err, files) {
+  that.log.h1('Before Importing ' + glob)
+  Glob(glob, function (err, files) {
     that.log.h1('Begin importing ' + files.length + ' files')
     if(files.length <= 0) {
       throw new Error('No files!')
@@ -179,8 +180,9 @@ ZoneImporter.prototype.runMulti = function(glob, opts, cb) {
       var file = files[counter++]
       that.run(file, function (stat) {
         stats[file] = stat
-        // if(opts.delAfter) 
-        //   return fs.unlink(file, next)
+        that.log.h1('End of file')
+        if(opts.delAfter)  
+          return fs.unlink(file, next)
         next()
       })
     }
